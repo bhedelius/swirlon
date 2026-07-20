@@ -390,7 +390,7 @@
       <div class="legend">System</div>
       <div class="ctrl" data-ctrl>
         <div class="row"><label for="n">Particles</label><span class="val" id="nVal"></span></div>
-        <input type="range" id="n" min="60" max="1200" step="20" />
+        <input type="range" id="n" min="60" max="3000" step="20" />
         <div class="desc">Also sets density: crowd them and swirlons merge into one churning droplet.</div>
       </div>
       <div class="ctrl" data-ctrl>
@@ -410,14 +410,12 @@
       <div class="ctrl">
         <div class="row"><label>Colour by</label></div>
         <div class="seg" id="colorSeg">
-          <button data-color="dir" class="active" type="button">Direction</button>
-          <button data-color="speed" type="button">Speed</button>
+          <button data-color="dir" type="button">Direction</button>
+          <button data-color="speed" class="active" type="button">Speed</button>
         </div>
       </div>
       <div class="toggles">
-        <label class="toggle on" id="trailTog"><input type="checkbox" id="trails" checked />Trails</label>
-        <label class="toggle on" id="arrowTog"><input type="checkbox" id="arrows" checked />Velocity arrows</label>
-        <label class="toggle" id="glowTog"><input type="checkbox" id="glow" checked />Glow</label>
+        <label class="toggle" id="arrowTog"><input type="checkbox" id="arrows" />Velocity arrows</label>
       </div>
     </div>
 
@@ -481,16 +479,20 @@
   let simSpeed = 11;    // physics steps per rendered frame (Sim speed control)
 
   // ---- tunable parameters ----
-  const P = { b: 1.5, D: 0.02, Ca: 4, la: 2.0, N: 280, grav: 0, pot: "morse" };
-  const view = { color: "dir", trails: true, arrows: true, glow: true };
+  const P = { b: 2.11, D: 0.007, Ca: 6.2, la: 0.95, N: 1000, grav: 0, pot: "morse" };
+  const view = { color: "speed", arrows: false };
 
+  // Parameters tuned by offline optimization: a headless port of this exact
+  // integrator was run to steady state over a parameter sweep, scoring each
+  // phase against quantitative order parameters (rotation vs. polar order,
+  // clustered fraction, hexatic order, temporal turnover). See doc/optimization.md.
   const PRESETS = {
-    swirlons: { label: "Swirlons", tag: "coherent spin", b: 1.5, D: 0.02, Ca: 4, la: 2.0, N: 280, grav: 0, pot: "morse" },
-    churn:    { label: "Churn",    tag: "noisy turnover", b: 2.0, D: 0.10, Ca: 4, la: 1.5, N: 420, grav: 0, pot: "morse" },
-    gas:      { label: "Gas",      tag: "unbound, roaming", b: 2.0, D: 0.25, Ca: 1.0, la: 1.5, N: 420, grav: 0, pot: "morse" },
-    liquid:   { label: "Liquid",   tag: "big churning drops", b: 1.0, D: 0.03, Ca: 5, la: 2.0, N: 820, grav: 0, pot: "morse" },
-    solid:    { label: "Solid",    tag: "frozen crystal", b: 0.05, D: 0, Ca: 7, la: 1.6, N: 620, grav: 0, pot: "morse" },
-    flock:    { label: "Flock",    tag: "long-range → aligns", b: 2.0, D: 0, Ca: 4, la: 3.0, N: 420, grav: 0, pot: "morse" },
+    swirlons: { label: "Swirlons", tag: "coherent spin", b: 2.11, D: 0.007, Ca: 6.2, la: 0.95, N: 1000, grav: 0, pot: "morse" },
+    churn:    { label: "Churn",    tag: "noisy turnover", b: 2.15, D: 0.06, Ca: 3.1, la: 1.25, N: 800, grav: 0, pot: "morse" },
+    gas:      { label: "Gas",      tag: "unbound, roaming", b: 1.5, D: 0.30, Ca: 1.3, la: 1.2, N: 500, grav: 0, pot: "morse" },
+    liquid:   { label: "Liquid",   tag: "big churning drops", b: 2.2, D: 0.007, Ca: 4.9, la: 3.05, N: 1100, grav: 0, pot: "morse" },
+    solid:    { label: "Solid",    tag: "frozen crystal", b: 0.15, D: 0.001, Ca: 7.3, la: 2.3, N: 900, grav: 0, pot: "morse" },
+    flock:    { label: "Flock",    tag: "long-range → aligns", b: 3.0, D: 0.017, Ca: 5.7, la: 4.0, N: 300, grav: 0, pot: "morse" },
   };
 
   // ---- state (typed arrays) ----
@@ -736,34 +738,16 @@
   }
 
   function render() {
-    if (view.trails) fadeClear(0.08);
-    else fadeClear(1);
+    fadeClear(1);
 
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.translate(offX, offY);
     ctx.scale(scale, scale);
 
-    // Normal compositing throughout — additive 'lighter' over trails burned
-    // cluster centres to solid white; source-over keeps particle colour.
     const rad = 0.66 * SIG;
     const vscale = 1 / (Math.sqrt(P.b) + 0.6);
     const TWO_PI = Math.PI * 2;
-
-    // glow halo pass (soft, translucent — does not accumulate to white)
-    if (view.glow) {
-      ctx.globalAlpha = 0.16;
-      for (let i = 0; i < N; i++) {
-        const sp = Math.hypot(vx[i], vy[i]);
-        ctx.fillStyle = view.color === "dir"
-          ? "hsl(" + ((Math.atan2(vy[i], vx[i]) / TWO_PI) * 360 + 180) + ",80%,60%)"
-          : speedColor(sp * vscale * 0.9);
-        ctx.beginPath();
-        ctx.arc(x[i], y[i], rad * 2.6, 0, TWO_PI);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
 
     // solid core pass
     for (let i = 0; i < N; i++) {
@@ -892,9 +876,7 @@
     const el = $(id), wrap = $(wrapId);
     el.addEventListener("change", () => { view[key] = el.checked; wrap.classList.toggle("on", el.checked); });
   }
-  bindToggle("trails", "trailTog", "trails");
   bindToggle("arrows", "arrowTog", "arrows");
-  bindToggle("glow", "glowTog", "glow");
 
   $("playBtn").addEventListener("click", () => {
     running = !running;
