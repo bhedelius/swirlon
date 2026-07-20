@@ -1,0 +1,945 @@
+<title>Swirlons — Active Matter Playground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0a0f18;
+    --screen: #06090f;
+    --screen-edge: #1b2432;
+    --panel: #0e1420;
+    --panel-2: #121a29;
+    --ink: #d3dcec;
+    --ink-dim: #8593a8;
+    --ink-faint: #5b6980;
+    --line: rgba(120, 140, 170, 0.14);
+    --line-strong: rgba(120, 140, 170, 0.28);
+    --accent: #3fd8c6;
+    --accent-dim: #2a8f85;
+    --accent-ink: #061512;
+    --warn: #eab04d;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #e7ebf1;
+    --panel: #f4f6fa;
+    --panel-2: #eaeef4;
+    --ink: #1a2230;
+    --ink-dim: #52607a;
+    --ink-faint: #8592a8;
+    --line: rgba(30, 50, 80, 0.12);
+    --line-strong: rgba(30, 50, 80, 0.22);
+    --accent: #12897b;
+    --accent-dim: #4bbcae;
+    --accent-ink: #ffffff;
+    --shadow: rgba(30, 45, 70, 0.16);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+      --bg: #e7ebf1;
+      --panel: #f4f6fa;
+      --panel-2: #eaeef4;
+      --ink: #1a2230;
+      --ink-dim: #52607a;
+      --ink-faint: #8592a8;
+      --line: rgba(30, 50, 80, 0.12);
+      --line-strong: rgba(30, 50, 80, 0.22);
+      --accent: #12897b;
+      --accent-dim: #4bbcae;
+      --accent-ink: #ffffff;
+      --shadow: rgba(30, 45, 70, 0.16);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+  }
+  header.top {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .mark {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    max-width: 62ch;
+  }
+  .sub b { color: var(--ink); font-weight: 600; }
+  .top-spacer { flex: 1; }
+  .theme-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .theme-btn:hover { color: var(--ink); border-color: var(--accent-dim); }
+
+  /* stage */
+  .stage {
+    position: relative;
+    background: var(--screen);
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
+  }
+  :root[data-theme="light"] .stage,
+  :root:not([data-theme="dark"]) .stage { box-shadow: inset 0 0 0 1px var(--line); }
+  canvas#view { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  .stage-overlay {
+    position: absolute;
+    left: 14px; top: 12px;
+    display: flex; gap: 8px; align-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(200, 214, 235, 0.7);
+    pointer-events: none;
+    text-transform: uppercase;
+  }
+  .phase-chip {
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: rgba(10, 16, 26, 0.72);
+    border: 1px solid rgba(120, 200, 190, 0.35);
+    color: var(--accent);
+    letter-spacing: 0.14em;
+    font-weight: 600;
+  }
+  .hint {
+    position: absolute;
+    left: 14px; bottom: 12px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: rgba(160, 176, 200, 0.5);
+    pointer-events: none;
+  }
+
+  /* metrics strip on the stage */
+  .readout {
+    position: absolute;
+    right: 14px; top: 12px;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 2px 16px;
+    padding: 11px 14px;
+    background: rgba(8, 13, 21, 0.74);
+    border: 1px solid rgba(120, 140, 170, 0.2);
+    border-radius: var(--radius);
+    backdrop-filter: blur(6px);
+    font-family: var(--mono);
+    min-width: 210px;
+  }
+  .readout .r-label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(180, 194, 216, 0.62); align-self: center; }
+  .readout .r-val { font-size: 14px; text-align: right; color: #dfe8f5; font-variant-numeric: tabular-nums; }
+  .readout .r-val.accent { color: var(--accent); }
+  .readout .r-note { grid-column: 1 / -1; margin-top: 6px; font-family: var(--sans); font-size: 11px; line-height: 1.35; color: rgba(180, 194, 216, 0.6); letter-spacing: 0; text-transform: none; }
+
+  /* controls */
+  aside.controls {
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px 18px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .group { display: flex; flex-direction: column; gap: 11px; }
+  .group > .legend {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .group > .legend::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .transport { display: flex; gap: 8px; }
+  .btn {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 550;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 9px 10px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s, color .12s;
+  }
+  .btn:hover { border-color: var(--accent-dim); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.06); }
+
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chip {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 550;
+    text-align: left;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 8px 11px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .chip small { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; color: var(--ink-faint); text-transform: uppercase; }
+  .chip:hover { border-color: var(--accent-dim); }
+  .chip.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip.active small { color: var(--accent); }
+
+  .ctrl { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .ctrl label { font-size: 13px; color: var(--ink); }
+  .ctrl .val { font-family: var(--mono); font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ctrl .desc { font-size: 11px; color: var(--ink-faint); line-height: 1.3; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 22px; background: transparent; cursor: pointer; margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: var(--line-strong); }
+  input[type="range"]::-moz-range-track { height: 3px; border-radius: 3px; background: var(--line-strong); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%; margin-top: -5.5px;
+    background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--accent-dim);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--panel);
+    background: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim);
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+  .seg { display: flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    flex: 1; font-family: var(--sans); font-size: 12px; color: var(--ink-dim);
+    background: transparent; border: 0; padding: 8px 6px; cursor: pointer;
+    border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.active { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+
+  .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--ink-dim);
+    border: 1px solid var(--line-strong); border-radius: 999px;
+    padding: 6px 11px; cursor: pointer; user-select: none;
+  }
+  .toggle input { accent-color: var(--accent); width: 14px; height: 14px; margin: 0; }
+  .toggle.on { color: var(--ink); border-color: var(--accent-dim); }
+
+  details.explain {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel-2); padding: 0 14px;
+  }
+  details.explain > summary {
+    cursor: pointer; list-style: none; padding: 12px 0;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  details.explain > summary::-webkit-details-marker { display: none; }
+  details.explain > summary::before { content: "+"; color: var(--accent); font-size: 14px; }
+  details.explain[open] > summary::before { content: "–"; }
+  details.explain .body { padding: 0 0 14px; font-size: 12.5px; color: var(--ink-dim); line-height: 1.55; }
+  details.explain .body p { margin: 0 0 9px; }
+  details.explain .body b { color: var(--ink); font-weight: 600; }
+  details.explain .body code { font-family: var(--mono); font-size: 11.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; color: var(--accent); }
+  details.explain .body a { color: var(--accent); }
+
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 56vh auto; }
+    aside.controls { border-left: 0; border-top: 1px solid var(--line); }
+    .readout { position: static; margin: 0; }
+  }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="mark">Active&nbsp;Matter</span>
+      <h1>Swirlons</h1>
+    </div>
+    <span class="sub">Self-propelled particles with no alignment rule. Give each one a target speed and let them attract — clusters can't all flow one way, so they <b>orbit their common centre</b>. Every particle keeps moving; the cluster barely does.</span>
+    <span class="top-spacer"></span>
+    <button class="theme-btn" id="themeBtn" type="button">Theme</button>
+  </header>
+
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <div class="stage-overlay"><span class="phase-chip" id="phaseChip">SWIRLONS</span></div>
+    <div class="readout" id="readout">
+      <span class="r-label">Swirlons</span><span class="r-val" id="mCount">–</span>
+      <span class="r-label">Particle speed</span><span class="r-val accent" id="mPart">–</span>
+      <span class="r-label">Swirlon drift</span><span class="r-val accent" id="mDrift">–</span>
+      <span class="r-note" id="mNote">Particles race; swirlons crawl — the active-matter signature.</span>
+    </div>
+    <div class="hint">Drag on the field to stir the particles</div>
+  </div>
+
+  <aside class="controls">
+    <div class="group">
+      <div class="legend">Transport</div>
+      <div class="transport">
+        <button class="btn primary" id="playBtn" type="button">Pause</button>
+        <button class="btn" id="resetBtn" type="button">Reset</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="legend">Phase presets</div>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="group">
+      <div class="legend">Self-propulsion</div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="b">Target speed&nbsp;√b</label><span class="val" id="bVal"></span></div>
+        <input type="range" id="b" min="0.02" max="14" step="0.01" />
+        <div class="desc">Drives each particle toward speed √b via Rayleigh friction <code>(b−v²)v</code>. High values overpower attraction — particles escape.</div>
+      </div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="noise">Noise&nbsp;D</label><span class="val" id="noiseVal"></span></div>
+        <input type="range" id="noise" min="0" max="0.6" step="0.005" />
+        <div class="desc">Random thermal kicks. A little melts crystals; a lot evaporates clusters into gas.</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="legend">Interaction</div>
+      <div class="ctrl">
+        <div class="row"><label>Potential</label></div>
+        <div class="seg" id="potSeg">
+          <button data-pot="morse" class="active" type="button">Morse-like</button>
+          <button data-pot="lj" type="button">Lennard-Jones</button>
+        </div>
+        <div class="desc" id="potDesc">Hard core + <b>long-range</b> exponential attraction — the regime that makes swirlons.</div>
+      </div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="ca">Attraction strength</label><span class="val" id="caVal"></span></div>
+        <input type="range" id="ca" min="0" max="14" step="0.1" />
+        <div class="desc">Too weak → gas that never condenses. Too strong → sluggish frozen drops.</div>
+      </div>
+      <div class="ctrl" data-ctrl id="laCtrl">
+        <div class="row"><label for="la">Attraction range</label><span class="val" id="laVal"></span></div>
+        <input type="range" id="la" min="0.6" max="4" step="0.05" />
+        <div class="desc">How far the pull reaches. Long range binds many particles into extended, orbiting clusters.</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="legend">System</div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="n">Particles</label><span class="val" id="nVal"></span></div>
+        <input type="range" id="n" min="60" max="1200" step="20" />
+        <div class="desc">Also sets density: crowd them and swirlons merge into one churning droplet.</div>
+      </div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="grav">External nudge</label><span class="val" id="gravVal"></span></div>
+        <input type="range" id="grav" min="0" max="1.2" step="0.01" />
+        <div class="desc">A steady sideways force. Watch swirlons drift at <b>constant velocity</b> ∝ force — like objects in a viscous fluid, not Newton's <code>a = F/m</code>.</div>
+      </div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="speed">Sim speed</label><span class="val" id="speedVal"></span></div>
+        <input type="range" id="speed" min="1" max="24" step="1" />
+        <div class="desc">Physics steps per frame — the wall-clock rate of time. Turn it up to see particles actually zip and orbit.</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="legend">Display</div>
+      <div class="ctrl">
+        <div class="row"><label>Colour by</label></div>
+        <div class="seg" id="colorSeg">
+          <button data-color="dir" class="active" type="button">Direction</button>
+          <button data-color="speed" type="button">Speed</button>
+        </div>
+      </div>
+      <div class="toggles">
+        <label class="toggle on" id="trailTog"><input type="checkbox" id="trails" checked />Trails</label>
+        <label class="toggle on" id="arrowTog"><input type="checkbox" id="arrows" checked />Velocity arrows</label>
+        <label class="toggle" id="glowTog"><input type="checkbox" id="glow" checked />Glow</label>
+      </div>
+    </div>
+
+    <details class="explain">
+      <summary>The physics</summary>
+      <div class="body">
+        <p>Each particle obeys a Langevin equation
+        <code>v̇ = f + (b−v²)v + √(2D)·ξ</code>. The term <code>(b−v²)v</code> is
+        <b>self-propulsion</b>: it pumps a particle up to speed <code>√b</code> in whatever
+        direction it points. Crucially there is <b>no alignment</b> — unlike flocking models,
+        neighbours don't copy each other's heading.</p>
+        <p>There's no explicit fluid — this is <b>dry active matter</b>. The propulsion term
+        is itself the coupling to an implicit substrate: <code>+b·v</code> is a
+        <i>negative</i> friction that feeds energy in (the motor), while <code>−v²·v</code> is
+        ordinary friction that takes it out. Their balance fixes the free-particle speed at
+        <code>√b</code>. It's not a vacuum (nothing would set a preferred speed) and not a
+        passive solvent (that could only remove energy); momentum isn't conserved — the
+        substrate absorbs it.</p>
+        <p>The interaction <code>f</code> has a hard core and a <b>short-range</b> attraction —
+        this range is the whole trick. Long-range attraction lets a cluster feel a smooth pull
+        toward its centre and simply <b>translate together</b> (a flock — try the Flock preset).
+        Short, <i>local</i> attraction frustrates that: a bound particle still must move at
+        <code>√b</code> but is hemmed in by neighbours, so the cluster resolves the conflict by
+        <b>circulating around its own centre of mass</b>. That collective orbit is a swirlon;
+        roughly half spin clockwise, half counter-clockwise.</p>
+        <p><b>Coherent rotation takes time to build.</b> Fresh from disorder, small clusters
+        churn and some briefly flock; give it ~20–30&nbsp;seconds and they coarsen into larger
+        swirlons that lock into a clean spin (about half each way). Watch the velocity arrows curl
+        around each centre. <b>Noise</b> sets the trade-off: low noise (default) → clean, coherent
+        spin but swirlons slowly coalesce; more noise (try the Churn preset) → particles boil off
+        as fast as they join, giving a steady population that forms and breaks — at the cost of
+        crisp rotation.</p>
+        <p>The counter-intuitive payoff: a swirlon responds to a steady force (the External nudge)
+        by moving at <b>constant velocity</b>, not constant acceleration — active drag makes a
+        cluster behave as if immersed in a viscous fluid. Weaken attraction for a <b>gas</b>,
+        crowd the box for churning <b>liquid</b> drops, and cut propulsion for a frozen
+        <b>solid</b>. The box wraps around (periodic).</p>
+        <p>Model after Brilliantov, Abutuqayqah, Tyukin &amp; Matveev, “Swirlonic state of active
+        matter,” <i>Scientific Reports</i> <b>10</b>, 16783 (2020).</p>
+      </div>
+    </details>
+  </aside>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  // ---- fixed world (simulation units); letterboxed into the canvas ----
+  const WORLD_W = 150, WORLD_H = 100;
+
+  // ---- fixed physics constants (validated offline) ----
+  const SIG = 1.0;      // particle diameter (sim units)
+  const CR = 1.0;       // repulsive-core strength
+  const RCUT = 7.0;     // interaction cutoff
+  const FMAX = 120;     // force clamp (keeps explicit integration stable)
+  const DT = 0.004;     // integration step
+  const LINK = 1.8;     // clustering link distance for metrics
+  let simSpeed = 11;    // physics steps per rendered frame (Sim speed control)
+
+  // ---- tunable parameters ----
+  const P = { b: 1.5, D: 0.02, Ca: 4, la: 2.0, N: 280, grav: 0, pot: "morse" };
+  const view = { color: "dir", trails: true, arrows: true, glow: true };
+
+  const PRESETS = {
+    swirlons: { label: "Swirlons", tag: "coherent spin", b: 1.5, D: 0.02, Ca: 4, la: 2.0, N: 280, grav: 0, pot: "morse" },
+    churn:    { label: "Churn",    tag: "noisy turnover", b: 2.0, D: 0.10, Ca: 4, la: 1.5, N: 420, grav: 0, pot: "morse" },
+    gas:      { label: "Gas",      tag: "unbound, roaming", b: 2.0, D: 0.25, Ca: 1.0, la: 1.5, N: 420, grav: 0, pot: "morse" },
+    liquid:   { label: "Liquid",   tag: "big churning drops", b: 1.0, D: 0.03, Ca: 5, la: 2.0, N: 820, grav: 0, pot: "morse" },
+    solid:    { label: "Solid",    tag: "frozen crystal", b: 0.05, D: 0, Ca: 7, la: 1.6, N: 620, grav: 0, pot: "morse" },
+    flock:    { label: "Flock",    tag: "long-range → aligns", b: 2.0, D: 0, Ca: 4, la: 3.0, N: 420, grav: 0, pot: "morse" },
+  };
+
+  // ---- state (typed arrays) ----
+  let x, y, vx, vy, N = 0;
+  let running = true;
+  let activePreset = "swirlons";
+
+  // deterministic PRNG (mulberry32) so Reset is reproducible per session
+  let seed = 1234567;
+  function rand() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  // Box–Muller gaussian
+  let gCache = null;
+  function gauss() {
+    if (gCache !== null) { const g = gCache; gCache = null; return g; }
+    let u = 0, v = 0;
+    while (u < 1e-9) u = rand();
+    v = rand();
+    const m = Math.sqrt(-2 * Math.log(u));
+    gCache = m * Math.sin(2 * Math.PI * v);
+    return m * Math.cos(2 * Math.PI * v);
+  }
+
+  function allocate(n) {
+    N = n;
+    x = new Float64Array(n); y = new Float64Array(n);
+    vx = new Float64Array(n); vy = new Float64Array(n);
+  }
+
+  function init() {
+    seed = 1234567;
+    allocate(P.N);
+    const sp = Math.sqrt(P.b);
+    for (let i = 0; i < N; i++) {
+      x[i] = rand() * WORLD_W;
+      y[i] = rand() * WORLD_H;
+      const a = rand() * 2 * Math.PI;
+      vx[i] = Math.cos(a) * sp; vy[i] = Math.sin(a) * sp;
+    }
+    fadeClear(1);
+  }
+
+  // ---- neighbour grid (cell list), periodic (toroidal) ----
+  let cols = 0, rows = 0, cellW = 1, cellH = 1;
+  let head = null, next = null;
+  function buildGrid(cellSize) {
+    // >=3 columns/rows so the 3x3 stencil never wraps onto itself
+    cols = Math.max(3, Math.floor(WORLD_W / cellSize));
+    rows = Math.max(3, Math.floor(WORLD_H / cellSize));
+    cellW = WORLD_W / cols;
+    cellH = WORLD_H / rows;
+    const nc = cols * rows;
+    if (!head || head.length !== nc) head = new Int32Array(nc);
+    head.fill(-1);
+    if (!next || next.length < N) next = new Int32Array(N);
+    for (let i = 0; i < N; i++) {
+      let cx = Math.floor(x[i] / cellW) % cols; if (cx < 0) cx += cols;
+      let cy = Math.floor(y[i] / cellH) % rows; if (cy < 0) cy += rows;
+      const c = cy * cols + cx;
+      next[i] = head[c]; head[c] = i;
+    }
+  }
+
+  function forceMag(r) {
+    // positive = repulsive (push apart)
+    let f;
+    if (P.pot === "lj") {
+      const sr2 = (SIG * SIG) / (r * r);
+      const sr6 = sr2 * sr2 * sr2;
+      const eps = 0.6 * P.Ca + 0.15;
+      f = 24 * eps * (2 * sr6 * sr6 - sr6) / r;
+    } else {
+      const rep = 12 * CR * Math.pow(SIG, 12) / Math.pow(r, 13);
+      const att = P.la > 1e-6 ? (P.Ca / P.la) * Math.exp(-r / P.la) : 0;
+      f = rep - att;
+    }
+    if (f > FMAX) f = FMAX; else if (f < -FMAX) f = -FMAX;
+    return f;
+  }
+
+  // pointer stirring
+  const pointer = { active: false, x: 0, y: 0, R: 10, str: 40 };
+
+  function physicsStep() {
+    buildGrid(RCUT);
+    const fx = physicsStep.fx && physicsStep.fx.length === N ? physicsStep.fx : (physicsStep.fx = new Float64Array(N));
+    const fy = physicsStep.fy && physicsStep.fy.length === N ? physicsStep.fy : (physicsStep.fy = new Float64Array(N));
+    fx.fill(0); fy.fill(0);
+    const rc2 = RCUT * RCUT;
+    const HW = WORLD_W * 0.5, HH = WORLD_H * 0.5;
+
+    // full 3x3 stencil with toroidal wrap; each pair counted once via j < i
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const cbase = cy * cols + cx;
+        for (let i = head[cbase]; i !== -1; i = next[i]) {
+          for (let oy = -1; oy <= 1; oy++) {
+            let ny = cy + oy; if (ny < 0) ny += rows; else if (ny >= rows) ny -= rows;
+            for (let ox = -1; ox <= 1; ox++) {
+              let nx = cx + ox; if (nx < 0) nx += cols; else if (nx >= cols) nx -= cols;
+              for (let j = head[ny * cols + nx]; j !== -1; j = next[j]) {
+                if (j >= i) continue; // each unordered pair once
+                let dx = x[i] - x[j], dy = y[i] - y[j];
+                if (dx > HW) dx -= WORLD_W; else if (dx < -HW) dx += WORLD_W;
+                if (dy > HH) dy -= WORLD_H; else if (dy < -HH) dy += WORLD_H;
+                const r2 = dx * dx + dy * dy;
+                if (r2 > rc2 || r2 < 1e-12) continue;
+                let r = Math.sqrt(r2);
+                if (r < 0.2) r = 0.2;
+                const f = forceMag(r) / r;
+                const ax = f * dx, ay = f * dy;
+                fx[i] += ax; fy[i] += ay;
+                fx[j] -= ax; fy[j] -= ay;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const noiseAmp = Math.sqrt(2 * P.D * DT);
+    const g = P.grav;
+    for (let i = 0; i < N; i++) {
+      const v2 = vx[i] * vx[i] + vy[i] * vy[i];
+      let ax = fx[i] + (P.b - v2) * vx[i] + g;
+      let ay = fy[i] + (P.b - v2) * vy[i];
+      if (pointer.active) {
+        let dx = x[i] - pointer.x, dy = y[i] - pointer.y;
+        if (dx > HW) dx -= WORLD_W; else if (dx < -HW) dx += WORLD_W;
+        if (dy > HH) dy -= WORLD_H; else if (dy < -HH) dy += WORLD_H;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < pointer.R * pointer.R && d2 > 1e-4) {
+          const d = Math.sqrt(d2);
+          const s = pointer.str * (1 - d / pointer.R) / d;
+          ax += s * dx; ay += s * dy;
+        }
+      }
+      vx[i] += ax * DT; vy[i] += ay * DT;
+      if (noiseAmp > 0) { vx[i] += noiseAmp * gauss(); vy[i] += noiseAmp * gauss(); }
+      x[i] += vx[i] * DT; y[i] += vy[i] * DT;
+      // periodic wrap
+      if (x[i] < 0) x[i] += WORLD_W; else if (x[i] >= WORLD_W) x[i] -= WORLD_W;
+      if (y[i] < 0) y[i] += WORLD_H; else if (y[i] >= WORLD_H) y[i] -= WORLD_H;
+    }
+  }
+
+  // ---- clustering metrics (throttled) ----
+  const metrics = { count: 0, part: 0, drift: 0 };
+  const cid = { arr: null };
+  function computeMetrics() {
+    buildGrid(LINK);
+    if (!cid.arr || cid.arr.length !== N) cid.arr = new Int32Array(N);
+    const label = cid.arr; label.fill(-1);
+    const stack = computeMetrics.stack && computeMetrics.stack.length >= N ? computeMetrics.stack : (computeMetrics.stack = new Int32Array(N));
+    let nClusters = 0;
+    const link2 = LINK * LINK;
+    const HW = WORLD_W * 0.5, HH = WORLD_H * 0.5;
+    // accumulators per cluster kept in small arrays, grown as needed
+    const cxs = [], cys = [], cvxs = [], cvys = [], sizes = [];
+
+    for (let s = 0; s < N; s++) {
+      if (label[s] !== -1) continue;
+      const cl = nClusters++;
+      let sp = 0;
+      let sumx = 0, sumy = 0, sumvx = 0, sumvy = 0, cnt = 0;
+      label[s] = cl; stack[0] = s; let top = 1;
+      while (top > 0) {
+        const i = stack[--top];
+        sumx += x[i]; sumy += y[i]; sumvx += vx[i]; sumvy += vy[i]; cnt++;
+        let cxi = Math.floor(x[i] / cellW) % cols; if (cxi < 0) cxi += cols;
+        let cyi = Math.floor(y[i] / cellH) % rows; if (cyi < 0) cyi += rows;
+        for (let oy = -1; oy <= 1; oy++) {
+          let ny = cyi + oy; if (ny < 0) ny += rows; else if (ny >= rows) ny -= rows;
+          for (let ox = -1; ox <= 1; ox++) {
+            let nx = cxi + ox; if (nx < 0) nx += cols; else if (nx >= cols) nx -= cols;
+            for (let j = head[ny * cols + nx]; j !== -1; j = next[j]) {
+              if (label[j] !== -1) continue;
+              let dx = x[i] - x[j], dy = y[i] - y[j];
+              if (dx > HW) dx -= WORLD_W; else if (dx < -HW) dx += WORLD_W;
+              if (dy > HH) dy -= WORLD_H; else if (dy < -HH) dy += WORLD_H;
+              if (dx * dx + dy * dy < link2) { label[j] = cl; stack[top++] = j; }
+            }
+          }
+        }
+      }
+      cxs[cl] = sumx; cys[cl] = sumy; cvxs[cl] = sumvx; cvys[cl] = sumvy; sizes[cl] = cnt;
+    }
+
+    // aggregate: big clusters only
+    let bigCount = 0, driftSum = 0, partSum = 0, partCnt = 0;
+    for (let c = 0; c < nClusters; c++) {
+      const n = sizes[c];
+      if (n >= 8) {
+        bigCount++;
+        driftSum += Math.hypot(cvxs[c] / n, cvys[c] / n);
+      }
+    }
+    for (let i = 0; i < N; i++) { partSum += Math.hypot(vx[i], vy[i]); partCnt++; }
+    metrics.count = bigCount;
+    metrics.drift = bigCount ? driftSum / bigCount : 0;
+    metrics.part = partCnt ? partSum / partCnt : 0;
+  }
+
+  // ---- rendering ----
+  let dpr = 1, scale = 1, offX = 0, offY = 0, cw = 0, ch = 0;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    cw = Math.max(1, Math.floor(rect.width));
+    ch = Math.max(1, Math.floor(rect.height));
+    canvas.width = Math.floor(cw * dpr);
+    canvas.height = Math.floor(ch * dpr);
+    scale = Math.min(cw / WORLD_W, ch / WORLD_H);
+    offX = (cw - WORLD_W * scale) / 2;
+    offY = (ch - WORLD_H * scale) / 2;
+    fadeClear(1);
+  }
+
+  function screenBg() {
+    const s = getComputedStyle(document.documentElement).getPropertyValue("--screen").trim();
+    return s || "#06090f";
+  }
+  function fadeClear(alpha) {
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = screenBg();
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
+  }
+
+  function speedColor(t) {
+    // 0 -> deep teal, 1 -> warm white; perceptual-ish ramp
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const h = 190 - 150 * t;      // teal -> orange
+    const s = 85 - 35 * t;
+    const l = 32 + 45 * t;
+    return "hsl(" + h + "," + s + "%," + l + "%)";
+  }
+
+  function render() {
+    if (view.trails) fadeClear(0.08);
+    else fadeClear(1);
+
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.translate(offX, offY);
+    ctx.scale(scale, scale);
+
+    // Normal compositing throughout — additive 'lighter' over trails burned
+    // cluster centres to solid white; source-over keeps particle colour.
+    const rad = 0.66 * SIG;
+    const vscale = 1 / (Math.sqrt(P.b) + 0.6);
+    const TWO_PI = Math.PI * 2;
+
+    // glow halo pass (soft, translucent — does not accumulate to white)
+    if (view.glow) {
+      ctx.globalAlpha = 0.16;
+      for (let i = 0; i < N; i++) {
+        const sp = Math.hypot(vx[i], vy[i]);
+        ctx.fillStyle = view.color === "dir"
+          ? "hsl(" + ((Math.atan2(vy[i], vx[i]) / TWO_PI) * 360 + 180) + ",80%,60%)"
+          : speedColor(sp * vscale * 0.9);
+        ctx.beginPath();
+        ctx.arc(x[i], y[i], rad * 2.6, 0, TWO_PI);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // solid core pass
+    for (let i = 0; i < N; i++) {
+      const sp = Math.hypot(vx[i], vy[i]);
+      if (view.color === "dir") {
+        const hue = (Math.atan2(vy[i], vx[i]) / TWO_PI) * 360 + 180;
+        const l = 46 + 26 * Math.min(1, sp * vscale);
+        ctx.fillStyle = "hsl(" + hue + ",82%," + l + "%)";
+      } else {
+        ctx.fillStyle = speedColor(sp * vscale * 0.9);
+      }
+      ctx.beginPath();
+      ctx.arc(x[i], y[i], rad, 0, TWO_PI);
+      ctx.fill();
+    }
+
+    if (view.arrows) {
+      ctx.strokeStyle = "rgba(232,240,252,0.72)";
+      ctx.lineWidth = 0.22;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      const k = 1.15;
+      for (let i = 0; i < N; i++) {
+        ctx.moveTo(x[i], y[i]);
+        ctx.lineTo(x[i] + vx[i] * k, y[i] + vy[i] * k);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---- main loop ----
+  let frame = 0;
+  function loop() {
+    if (running) {
+      for (let s = 0; s < simSpeed; s++) physicsStep();
+      frame++;
+      if (frame % 12 === 0) { computeMetrics(); updateReadout(); }
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- UI wiring ----
+  const $ = (id) => document.getElementById(id);
+  function fmt(v, d) { return v.toFixed(d); }
+
+  function updateReadout() {
+    $("mCount").textContent = metrics.count;
+    $("mPart").textContent = fmt(metrics.part, 2);
+    $("mDrift").textContent = fmt(metrics.drift, 2);
+  }
+
+  function syncControls() {
+    $("b").value = P.b; $("bVal").textContent = "b = " + fmt(P.b, 2) + "  (√b = " + fmt(Math.sqrt(P.b), 2) + ")";
+    $("noise").value = P.D; $("noiseVal").textContent = fmt(P.D, 3);
+    $("ca").value = P.Ca; $("caVal").textContent = fmt(P.Ca, 1);
+    $("la").value = P.la; $("laVal").textContent = fmt(P.la, 2);
+    $("n").value = P.N; $("nVal").textContent = P.N;
+    $("grav").value = P.grav; $("gravVal").textContent = fmt(P.grav, 2);
+    $("speed").value = simSpeed; $("speedVal").textContent = simSpeed + "×";
+    document.querySelectorAll("#potSeg button").forEach(btn => btn.classList.toggle("active", btn.dataset.pot === P.pot));
+    $("laCtrl").style.opacity = P.pot === "lj" ? 0.4 : 1;
+    $("la").disabled = P.pot === "lj";
+    $("potDesc").innerHTML = P.pot === "lj"
+      ? "Classic 12–6 potential: hard core + <b>short-range</b> attraction. Condenses readily but swirls less — the contrast case."
+      : "Hard core + <b>long-range</b> exponential attraction — the regime that makes swirlons.";
+  }
+
+  function setPhaseChip(name) {
+    const label = PRESETS[name] ? PRESETS[name].label.toUpperCase() : "CUSTOM";
+    $("phaseChip").textContent = label;
+  }
+
+  function applyPreset(key) {
+    const pr = PRESETS[key];
+    if (!pr) return;
+    P.b = pr.b; P.D = pr.D; P.Ca = pr.Ca; P.la = pr.la; P.N = pr.N; P.grav = pr.grav; P.pot = pr.pot;
+    activePreset = key;
+    document.querySelectorAll("#presets .chip").forEach(c => c.classList.toggle("active", c.dataset.key === key));
+    setPhaseChip(key);
+    syncControls();
+    init();
+  }
+
+  function markCustom() {
+    activePreset = null;
+    document.querySelectorAll("#presets .chip").forEach(c => c.classList.remove("active"));
+    setPhaseChip(null);
+  }
+
+  // build preset chips
+  const presetsEl = $("presets");
+  Object.keys(PRESETS).forEach(key => {
+    const pr = PRESETS[key];
+    const b = document.createElement("button");
+    b.className = "chip" + (key === activePreset ? " active" : "");
+    b.dataset.key = key;
+    b.type = "button";
+    b.innerHTML = pr.label + "<small>" + pr.tag + "</small>";
+    b.addEventListener("click", () => applyPreset(key));
+    presetsEl.appendChild(b);
+  });
+
+  // sliders
+  $("b").addEventListener("input", e => { P.b = +e.target.value; $("bVal").textContent = "b = " + fmt(P.b, 2) + "  (√b = " + fmt(Math.sqrt(P.b), 2) + ")"; markCustom(); });
+  $("noise").addEventListener("input", e => { P.D = +e.target.value; $("noiseVal").textContent = fmt(P.D, 3); markCustom(); });
+  $("ca").addEventListener("input", e => { P.Ca = +e.target.value; $("caVal").textContent = fmt(P.Ca, 1); markCustom(); });
+  $("la").addEventListener("input", e => { P.la = +e.target.value; $("laVal").textContent = fmt(P.la, 2); markCustom(); });
+  $("grav").addEventListener("input", e => { P.grav = +e.target.value; $("gravVal").textContent = fmt(P.grav, 2); markCustom(); });
+  $("n").addEventListener("input", e => { $("nVal").textContent = e.target.value; });
+  $("n").addEventListener("change", e => { P.N = +e.target.value; markCustom(); init(); });
+  $("speed").addEventListener("input", e => { simSpeed = +e.target.value; $("speedVal").textContent = simSpeed + "×"; });
+
+  document.querySelectorAll("#potSeg button").forEach(btn => {
+    btn.addEventListener("click", () => { P.pot = btn.dataset.pot; markCustom(); syncControls(); });
+  });
+  document.querySelectorAll("#colorSeg button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      view.color = btn.dataset.color;
+      document.querySelectorAll("#colorSeg button").forEach(b => b.classList.toggle("active", b === btn));
+    });
+  });
+
+  function bindToggle(id, wrapId, key) {
+    const el = $(id), wrap = $(wrapId);
+    el.addEventListener("change", () => { view[key] = el.checked; wrap.classList.toggle("on", el.checked); });
+  }
+  bindToggle("trails", "trailTog", "trails");
+  bindToggle("arrows", "arrowTog", "arrows");
+  bindToggle("glow", "glowTog", "glow");
+
+  $("playBtn").addEventListener("click", () => {
+    running = !running;
+    $("playBtn").textContent = running ? "Pause" : "Play";
+  });
+  $("resetBtn").addEventListener("click", () => { init(); });
+
+  // theme toggle
+  $("themeBtn").addEventListener("click", () => {
+    const root = document.documentElement;
+    const cur = root.getAttribute("data-theme");
+    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = cur ? cur === "dark" : sysDark;
+    root.setAttribute("data-theme", isDark ? "light" : "dark");
+    fadeClear(1);
+  });
+
+  // pointer stirring
+  function toWorld(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const px = (ev.clientX - rect.left - offX) / scale;
+    const py = (ev.clientY - rect.top - offY) / scale;
+    return { px, py };
+  }
+  canvas.addEventListener("pointerdown", ev => {
+    canvas.setPointerCapture(ev.pointerId);
+    pointer.active = true;
+    const w = toWorld(ev); pointer.x = w.px; pointer.y = w.py;
+  });
+  canvas.addEventListener("pointermove", ev => {
+    if (!pointer.active) return;
+    const w = toWorld(ev); pointer.x = w.px; pointer.y = w.py;
+  });
+  function endPointer() { pointer.active = false; }
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  canvas.addEventListener("pointerleave", endPointer);
+
+  window.addEventListener("resize", resize);
+
+  // boot
+  syncControls();
+  setPhaseChip("swirlons");
+  resize();
+  init();
+  requestAnimationFrame(loop);
+})();
+</script>
