@@ -71,57 +71,9 @@
     height: 100dvh;
     display: grid;
     grid-template-columns: 1fr 340px;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
     gap: 0;
   }
-  header.top {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: baseline;
-    gap: 18px;
-    flex-wrap: wrap;
-    padding: 14px 22px;
-    border-bottom: 1px solid var(--line);
-    background: var(--panel);
-  }
-  .brand { display: flex; align-items: baseline; gap: 12px; }
-  .mark {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--accent);
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    padding: 3px 10px;
-  }
-  h1 {
-    margin: 0;
-    font-size: 19px;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-  }
-  .sub {
-    color: var(--ink-dim);
-    font-size: 13.5px;
-    max-width: 62ch;
-  }
-  .sub b { color: var(--ink); font-weight: 600; }
-  .top-spacer { flex: 1; }
-  .theme-btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    background: transparent;
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    padding: 5px 12px;
-    cursor: pointer;
-  }
-  .theme-btn:hover { color: var(--ink); border-color: var(--accent-dim); }
-
   /* stage */
   .stage {
     position: relative;
@@ -153,6 +105,15 @@
     color: var(--accent);
     letter-spacing: 0.14em;
     font-weight: 600;
+  }
+  .fps-chip {
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(10, 16, 26, 0.72);
+    border: 1px solid rgba(120, 140, 170, 0.25);
+    color: rgba(180, 194, 216, 0.72);
+    letter-spacing: 0.1em;
+    font-variant-numeric: tabular-nums;
   }
   .hint {
     position: absolute;
@@ -307,26 +268,16 @@
   details.explain .body a { color: var(--accent); }
 
   @media (max-width: 860px) {
-    .app { grid-template-columns: 1fr; grid-template-rows: auto 56vh auto; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 56vh auto; }
     aside.controls { border-left: 0; border-top: 1px solid var(--line); }
     .readout { position: static; margin: 0; }
   }
 </style>
 
 <div class="app">
-  <header class="top">
-    <div class="brand">
-      <span class="mark">Active&nbsp;Matter</span>
-      <h1>Swirlons</h1>
-    </div>
-    <span class="sub">Self-propelled particles with no alignment rule. Give each one a target speed and let them attract — clusters can't all flow one way, so they <b>orbit their common centre</b>. Every particle keeps moving; the cluster barely does.</span>
-    <span class="top-spacer"></span>
-    <button class="theme-btn" id="themeBtn" type="button">Theme</button>
-  </header>
-
   <div class="stage">
     <canvas id="view"></canvas>
-    <div class="stage-overlay"><span class="phase-chip" id="phaseChip">SWIRLONS</span></div>
+    <div class="stage-overlay"><span class="phase-chip" id="phaseChip">SWIRLONS</span><span class="fps-chip" id="fpsChip"></span></div>
     <div class="readout" id="readout">
       <span class="r-label">Swirlons</span><span class="r-val" id="mCount">–</span>
       <span class="r-label">Particle speed</span><span class="r-val accent" id="mPart">–</span>
@@ -342,6 +293,11 @@
       <div class="transport">
         <button class="btn primary" id="playBtn" type="button">Pause</button>
         <button class="btn" id="resetBtn" type="button">Reset</button>
+      </div>
+      <div class="ctrl" data-ctrl>
+        <div class="row"><label for="speed">Speed</label><span class="val" id="speedVal"></span></div>
+        <input type="range" id="speed" min="1" max="60" step="1" />
+        <div class="desc">Physics steps per frame — how fast time runs. Crank it to watch particles zip and swirlons orbit; ease off if the frame rate (top-left) dips at high particle counts.</div>
       </div>
     </div>
 
@@ -397,11 +353,6 @@
         <div class="row"><label for="grav">External nudge</label><span class="val" id="gravVal"></span></div>
         <input type="range" id="grav" min="0" max="1.2" step="0.01" />
         <div class="desc">A steady sideways force. Watch swirlons drift at <b>constant velocity</b> ∝ force — like objects in a viscous fluid, not Newton's <code>a = F/m</code>.</div>
-      </div>
-      <div class="ctrl" data-ctrl>
-        <div class="row"><label for="speed">Sim speed</label><span class="val" id="speedVal"></span></div>
-        <input type="range" id="speed" min="1" max="24" step="1" />
-        <div class="desc">Physics steps per frame — the wall-clock rate of time. Turn it up to see particles actually zip and orbit.</div>
       </div>
     </div>
 
@@ -473,10 +424,11 @@
   const SIG = 1.0;      // particle diameter (sim units)
   const CR = 1.0;       // repulsive-core strength
   const RCUT = 7.0;     // interaction cutoff
+  const FSUB = 2;       // neighbour cells this many × finer than RCUT (keeps dense clumps cheap)
   const FMAX = 120;     // force clamp (keeps explicit integration stable)
   const DT = 0.004;     // integration step
   const LINK = 1.8;     // clustering link distance for metrics
-  let simSpeed = 11;    // physics steps per rendered frame (Sim speed control)
+  let simSpeed = 20;    // physics steps per rendered frame (Speed control)
 
   // ---- tunable parameters ----
   const P = { b: 2.11, D: 0.007, Ca: 6.2, la: 0.95, N: 1000, grav: 0, pot: "morse" };
@@ -560,59 +512,67 @@
     }
   }
 
-  function forceMag(r) {
-    // positive = repulsive (push apart)
-    let f;
-    if (P.pot === "lj") {
-      const sr2 = (SIG * SIG) / (r * r);
-      const sr6 = sr2 * sr2 * sr2;
-      const eps = 0.6 * P.Ca + 0.15;
-      f = 24 * eps * (2 * sr6 * sr6 - sr6) / r;
-    } else {
-      const rep = 12 * CR * Math.pow(SIG, 12) / Math.pow(r, 13);
-      const att = P.la > 1e-6 ? (P.Ca / P.la) * Math.exp(-r / P.la) : 0;
-      f = rep - att;
-    }
-    if (f > FMAX) f = FMAX; else if (f < -FMAX) f = -FMAX;
-    return f;
-  }
-
   // pointer stirring
   const pointer = { active: false, x: 0, y: 0, R: 10, str: 40 };
 
   function physicsStep() {
-    buildGrid(RCUT);
+    buildGrid(RCUT / FSUB);
     const fx = physicsStep.fx && physicsStep.fx.length === N ? physicsStep.fx : (physicsStep.fx = new Float64Array(N));
     const fy = physicsStep.fy && physicsStep.fy.length === N ? physicsStep.fy : (physicsStep.fy = new Float64Array(N));
     fx.fill(0); fy.fill(0);
     const rc2 = RCUT * RCUT;
     const HW = WORLD_W * 0.5, HH = WORLD_H * 0.5;
+    // stencil radius so rs·cell >= RCUT (clamped so it never wraps onto itself)
+    const rsx = Math.min(Math.ceil(RCUT / cellW), (cols - 1) >> 1);
+    const rsy = Math.min(Math.ceil(RCUT / cellH), (rows - 1) >> 1);
+    // force constants hoisted out of the hot pair loop; force is inlined below
+    const isLJ = P.pot === "lj";
+    const ljEps = 0.6 * P.Ca + 0.15;
+    const laPos = P.la > 1e-6;
+    const invLa = laPos ? 1 / P.la : 0;
+    const caOverLa = laPos ? P.Ca / P.la : 0;
 
-    // full 3x3 stencil with toroidal wrap; each pair counted once via j < i
+    // finer-than-cutoff stencil with toroidal wrap; each pair counted once via j < i
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         const cbase = cy * cols + cx;
         for (let i = head[cbase]; i !== -1; i = next[i]) {
-          for (let oy = -1; oy <= 1; oy++) {
+          const xi = x[i], yi = y[i];
+          let fxi = 0, fyi = 0;
+          for (let oy = -rsy; oy <= rsy; oy++) {
             let ny = cy + oy; if (ny < 0) ny += rows; else if (ny >= rows) ny -= rows;
-            for (let ox = -1; ox <= 1; ox++) {
+            const rowBase = ny * cols;
+            for (let ox = -rsx; ox <= rsx; ox++) {
               let nx = cx + ox; if (nx < 0) nx += cols; else if (nx >= cols) nx -= cols;
-              for (let j = head[ny * cols + nx]; j !== -1; j = next[j]) {
+              for (let j = head[rowBase + nx]; j !== -1; j = next[j]) {
                 if (j >= i) continue; // each unordered pair once
-                let dx = x[i] - x[j], dy = y[i] - y[j];
+                let dx = xi - x[j], dy = yi - y[j];
                 if (dx > HW) dx -= WORLD_W; else if (dx < -HW) dx += WORLD_W;
                 if (dy > HH) dy -= WORLD_H; else if (dy < -HH) dy += WORLD_H;
                 const r2 = dx * dx + dy * dy;
                 if (r2 > rc2 || r2 < 1e-12) continue;
                 let r = Math.sqrt(r2);
                 if (r < 0.2) r = 0.2;
-                const f = forceMag(r) / r;
+                let fm;
+                if (isLJ) {
+                  const inv2 = 1 / (r * r);
+                  const sr6 = inv2 * inv2 * inv2;
+                  fm = 24 * ljEps * (2 * sr6 * sr6 - sr6) / r;
+                } else {
+                  const rr2 = r * r, r6 = rr2 * rr2 * rr2;
+                  const rep = 12 / (r6 * r6 * r); // 12·CR·SIG¹²/r¹³ with CR=SIG=1
+                  const att = laPos ? caOverLa * Math.exp(-r * invLa) : 0;
+                  fm = rep - att;
+                }
+                if (fm > FMAX) fm = FMAX; else if (fm < -FMAX) fm = -FMAX;
+                const f = fm / r;
                 const ax = f * dx, ay = f * dy;
-                fx[i] += ax; fy[i] += ay;
+                fxi += ax; fyi += ay;
                 fx[j] -= ax; fy[j] -= ay;
               }
             }
           }
+          fx[i] += fxi; fy[i] += fyi;
         }
       }
     }
@@ -749,19 +709,40 @@
     const vscale = 1 / (Math.sqrt(P.b) + 0.6);
     const TWO_PI = Math.PI * 2;
 
-    // solid core pass
+    // Bucketed core pass: quantise each particle's colour to a small key and
+    // collect same-coloured discs into one Path2D, so we issue ~dozens of
+    // fillStyle changes + fills per frame instead of one per particle.
+    const bpath = render.bpath || (render.bpath = []);
+    const bused = render.bused || (render.bused = []);
+    bused.length = 0;
+    const isDir = view.color === "dir";
     for (let i = 0; i < N; i++) {
       const sp = Math.hypot(vx[i], vy[i]);
-      if (view.color === "dir") {
-        const hue = (Math.atan2(vy[i], vx[i]) / TWO_PI) * 360 + 180;
-        const l = 46 + 26 * Math.min(1, sp * vscale);
-        ctx.fillStyle = "hsl(" + hue + ",82%," + l + "%)";
+      let key;
+      if (isDir) {
+        let hb = ((Math.atan2(vy[i], vx[i]) / TWO_PI) * 72 + 36) | 0;
+        hb = ((hb % 72) + 72) % 72;                       // hue bucket 0..71
+        const lb = Math.min(3, (Math.min(1, sp * vscale) * 3 + 0.5) | 0);
+        key = hb * 4 + lb;                                 // 0..287
       } else {
-        ctx.fillStyle = speedColor(sp * vscale * 0.9);
+        let t = sp * vscale * 0.9; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        key = (t * 63 + 0.5) | 0;                          // 0..63
       }
-      ctx.beginPath();
-      ctx.arc(x[i], y[i], rad, 0, TWO_PI);
-      ctx.fill();
+      let p = bpath[key];
+      if (p === undefined) { p = bpath[key] = new Path2D(); bused.push(key); }
+      p.moveTo(x[i] + rad, y[i]);                          // detach each disc's subpath
+      p.arc(x[i], y[i], rad, 0, TWO_PI);
+    }
+    for (let u = 0; u < bused.length; u++) {
+      const key = bused[u];
+      if (isDir) {
+        const hb = (key / 4) | 0, lb = key % 4;
+        ctx.fillStyle = "hsl(" + (hb * 5) + ",82%," + (46 + 26 * (lb / 3)) + "%)";
+      } else {
+        ctx.fillStyle = speedColor(key / 63);
+      }
+      ctx.fill(bpath[key]);
+      bpath[key] = undefined;                             // reset slot for next frame
     }
 
     if (view.arrows) {
@@ -780,14 +761,17 @@
   }
 
   // ---- main loop ----
-  let frame = 0;
-  function loop() {
+  let frame = 0, fps = 0, lastT = 0;
+  function loop(t) {
+    if (lastT) { const dt = t - lastT; if (dt > 0) fps = fps ? fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt; }
+    lastT = t;
     if (running) {
       for (let s = 0; s < simSpeed; s++) physicsStep();
       frame++;
       if (frame % 12 === 0) { computeMetrics(); updateReadout(); }
     }
     render();
+    if (frame % 12 === 0) { const el = $("fpsChip"); if (el) el.textContent = Math.round(fps) + " fps"; }
     requestAnimationFrame(loop);
   }
 
@@ -883,16 +867,6 @@
     $("playBtn").textContent = running ? "Pause" : "Play";
   });
   $("resetBtn").addEventListener("click", () => { init(); });
-
-  // theme toggle
-  $("themeBtn").addEventListener("click", () => {
-    const root = document.documentElement;
-    const cur = root.getAttribute("data-theme");
-    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = cur ? cur === "dark" : sysDark;
-    root.setAttribute("data-theme", isDark ? "light" : "dark");
-    fadeClear(1);
-  });
 
   // pointer stirring
   function toWorld(ev) {
