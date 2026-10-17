@@ -51,7 +51,7 @@ Old vs new parameters:
 | Swirlons | 1.5, 0.02, 4, 2.0, 280 | **2.11, 0.007, 6.2, 0.95, 1000** |
 | Churn | 2.0, 0.10, 4, 1.5, 420 | **2.15, 0.06, 3.1, 1.25, 800** |
 | Gas | 2.0, 0.25, 1.0, 1.5, 420 | **1.5, 0.30, 1.3, 1.2, 500** |
-| Liquid | 1.0, 0.03, 5, 2.0, 820 | **2.2, 0.007, 4.9, 3.05, 1100** |
+| Liquid | 1.0, 0.03, 5, 2.0, 820 | **2.2, 0.005, 6.0, 2.8, 1500** |
 | Solid | 0.05, 0, 7, 1.6, 620 | **0.15, 0.001, 7.3, 2.3, 900** |
 | Flock | 2.0, 0, 4, 3.0, 420 | **3.0, 0.017, 5.7, 4.0, 300** |
 
@@ -62,7 +62,7 @@ Measured behavior (2 seeds, warmup 15k / window 4k):
 | Swirlons | **0.50** | 0.43 | 0.46 | 1.00 | 0.12 | 0.86 | – |
 | Churn | 0.23 | 0.21 | 0.20 | 0.85 | 0.10 | 0.59 | **0.037** |
 | Gas | – | – | – | **0.00** | – | – | – |
-| Liquid | 0.21 | 0.35 | 0.40 | 1.00 | **0.17** | 0.62 | – |
+| Liquid | 0.22 | 0.28 | 0.28 | 1.00 | **0.18** | 0.52 | – |
 | Solid | 0.14 | 0.20 | 0.20 | 0.97 | – | **0.93** | – |
 | Flock | 0.32 | **0.60** | 0.63 | 0.98 | – | 0.83 | – |
 
@@ -70,8 +70,14 @@ Baseline swirlons scored `rotOrder 0.315 ≈ polar 0.305` — spin and translati
 were **tied**, which is why the coherent-swirl behavior looked weak. The tuned
 preset reaches `rotOrder 0.50 > polar 0.43`: spin now clearly dominates, +58% in
 absolute rotation. Churn's turnover roughly doubled while its condensate became
-leaky (fracClustered 0.85 vs swirlons' 1.00), and Liquid's drops are 3.6× larger
-and fewer.
+leaky (fracClustered 0.85 vs swirlons' 1.00).
+
+Liquid was re-tuned a second time to read less like a flock: stronger, slightly
+shorter-range attraction at higher density (`Cₐ 4.9→6.0`, `lₐ 3.05→2.8`,
+`N 1100→1500`) cut net translation (`polar 0.41→0.28`, now comparable to
+`rotOrder 0.22` instead of dominating it ~2:1) and left the condensate more
+disordered (`hexatic 0.62→0.52`, i.e. more genuinely liquid than crystalline)
+while keeping drops large (`largest ≈ 0.18`) and fully condensed.
 
 ## What the optimization taught us
 
@@ -91,6 +97,18 @@ and fewer.
   turnover is strongest early and settles over time; the noise `D` that
   maximizes it sits just below the gas boundary. It is genuinely a narrow
   window, not a hand-tuning failure.
+- **Big drops and internal spin trade off; you cannot have both.** A "liquid"
+  wants large condensed drops, but large drops come from long-range attraction,
+  which is exactly what makes a cluster translate coherently (a flock). Forcing
+  `rotOrder > polar` collapses the drops to swirlon/churn size (`largest ≈ 0.08`).
+  The shipped Liquid is the compromise: the largest drops whose translation stays
+  weak and comparable to their spin, rather than dominating it.
+- **Watch the equilibration time for big-drop phases.** A short search warmup
+  (~8k steps) ranked a big-drop candidate as `rotOrder > polar`, but at full
+  warmup (15k) the same preset relaxed into a strong flock (`polar 0.54 ≫
+  rotOrder 0.26`) — coherent translation of a large condensate takes longer to
+  set in than its transient internal churn. Liquid candidates were therefore
+  scored only at full warmup.
 
 ## Reference
 
