@@ -359,7 +359,7 @@
     <div class="group">
       <div class="legend">Display</div>
       <div class="ctrl">
-        <div class="row"><label>Colour by</label></div>
+        <div class="row"><label>Color by</label></div>
         <div class="seg" id="colorSeg">
           <button data-color="dir" type="button">Direction</button>
           <button data-color="speed" class="active" type="button">Speed</button>
@@ -377,7 +377,7 @@
         <code>v̇ = f + (b−v²)v + √(2D)·ξ</code>. The term <code>(b−v²)v</code> is
         <b>self-propulsion</b>: it pumps a particle up to speed <code>√b</code> in whatever
         direction it points. Crucially there is <b>no alignment</b> — unlike flocking models,
-        neighbours don't copy each other's heading.</p>
+        neighbors don't copy each other's heading.</p>
         <p>There's no explicit fluid — this is <b>dry active matter</b>. The propulsion term
         is itself the coupling to an implicit substrate: <code>+b·v</code> is a
         <i>negative</i> friction that feeds energy in (the motor), while <code>−v²·v</code> is
@@ -387,23 +387,25 @@
         substrate absorbs it.</p>
         <p>The interaction <code>f</code> has a hard core and a <b>short-range</b> attraction —
         this range is the whole trick. Long-range attraction lets a cluster feel a smooth pull
-        toward its centre and simply <b>translate together</b> (a flock — try the Flock preset).
+        toward its center and simply <b>translate together</b> (a flock — try the Flock preset).
         Short, <i>local</i> attraction frustrates that: a bound particle still must move at
-        <code>√b</code> but is hemmed in by neighbours, so the cluster resolves the conflict by
-        <b>circulating around its own centre of mass</b>. That collective orbit is a swirlon;
+        <code>√b</code> but is hemmed in by neighbors, so the cluster resolves the conflict by
+        <b>circulating around its own center of mass</b>. That collective orbit is a swirlon;
         roughly half spin clockwise, half counter-clockwise.</p>
         <p><b>Coherent rotation takes time to build.</b> Fresh from disorder, small clusters
         churn and some briefly flock; give it ~20–30&nbsp;seconds and they coarsen into larger
         swirlons that lock into a clean spin (about half each way). Watch the velocity arrows curl
-        around each centre. <b>Noise</b> sets the trade-off: low noise (default) → clean, coherent
+        around each center. <b>Noise</b> sets the trade-off: low noise (default) → clean, coherent
         spin but swirlons slowly coalesce; more noise (try the Churn preset) → particles boil off
         as fast as they join, giving a steady population that forms and breaks — at the cost of
         crisp rotation.</p>
         <p>The counter-intuitive payoff: a swirlon responds to a steady force (the External nudge)
         by moving at <b>constant velocity</b>, not constant acceleration — active drag makes a
-        cluster behave as if immersed in a viscous fluid. Weaken attraction for a <b>gas</b>,
-        crowd the box for churning <b>liquid</b> drops, and cut propulsion for a frozen
-        <b>solid</b>. The box wraps around (periodic).</p>
+        cluster behave as if immersed in a viscous fluid. Weaken attraction for a <b>gas</b> —
+        unlike a passive gas, every particle is still a motor running at <code>√b</code>, so with
+        nothing to bind them they <b>roam</b> rather than jitter in place. Crowd the box for churning
+        <b>liquid</b> drops, and cut propulsion for a frozen <b>solid</b>. The box wraps around
+        (periodic).</p>
         <p>Model after Brilliantov, Abutuqayqah, Tyukin &amp; Matveev, “Swirlonic state of active
         matter,” <i>Scientific Reports</i> <b>10</b>, 16783 (2020).</p>
         <p>Source &amp; notes: <a href="https://github.com/bhedelius/swirlon" target="_blank" rel="noopener">github.com/bhedelius/swirlon</a>.</p>
@@ -425,7 +427,7 @@
   const SIG = 1.0;      // particle diameter (sim units)
   const CR = 1.0;       // repulsive-core strength
   const RCUT = 7.0;     // interaction cutoff
-  const FSUB = 2;       // neighbour cells this many × finer than RCUT (keeps dense clumps cheap)
+  const FSUB = 2;       // neighbor cells this many × finer than RCUT (keeps dense clumps cheap)
   const FMAX = 120;     // force clamp (keeps explicit integration stable)
   const DT = 0.004;     // integration step
   const LINK = 1.8;     // clustering link distance for metrics
@@ -492,7 +494,7 @@
     fadeClear(1);
   }
 
-  // ---- neighbour grid (cell list), periodic (toroidal) ----
+  // ---- neighbor grid (cell list), periodic (toroidal) ----
   let cols = 0, rows = 0, cellW = 1, cellH = 1;
   let head = null, next = null;
   function buildGrid(cellSize) {
@@ -710,8 +712,8 @@
     const vscale = 1 / (Math.sqrt(P.b) + 0.6);
     const TWO_PI = Math.PI * 2;
 
-    // Bucketed core pass: quantise each particle's colour to a small key and
-    // collect same-coloured discs into one Path2D, so we issue ~dozens of
+    // Bucketed core pass: quantize each particle's color to a small key and
+    // collect same-colored discs into one Path2D, so we issue ~dozens of
     // fillStyle changes + fills per frame instead of one per particle.
     const bpath = render.bpath || (render.bpath = []);
     const bused = render.bused || (render.bused = []);

@@ -3,7 +3,7 @@
 The six phase presets in `index.html` were originally hand-picked. This document
 records how they were re-derived by **running the simulation offline and
 optimizing each preset against quantitative order parameters**, so that every
-labelled phase actually exhibits the behavior it claims.
+labeled phase actually exhibits the behavior it claims.
 
 ## Method
 
@@ -21,7 +21,7 @@ are measured in a continuous frame.
 
 | symbol | meaning | high when… |
 |---|---|---|
-| `rotOrder` | `|Σ rᵢ×vᵢ| / Σ |rᵢ||vᵢ|` per cluster, size-weighted | particles **orbit** the common centre (rigid rotation → 1) |
+| `rotOrder` | `|Σ rᵢ×vᵢ| / Σ |rᵢ||vᵢ|` per cluster, size-weighted | particles **orbit** the common center (rigid rotation → 1) |
 | `polar` | `|Σ vᵢ| / Σ|vᵢ|` per cluster | particles **translate together** (a flock) |
 | `driftRatio` | cluster-COM speed / particle speed | the cluster itself moves fast |
 | `fracClustered` | fraction of particles in clusters ≥ 8 | condensed |
@@ -77,7 +77,7 @@ and fewer.
 
 - **Attraction *range* selects swirlon vs flock, not strength.** The original
   Swirlons preset used `lₐ = 2.0` (fairly long-range), which let clusters feel a
-  smooth pull toward their centre and simply translate — so they flocked as much
+  smooth pull toward their center and simply translate — so they flocked as much
   as they spun. Shortening to `lₐ ≈ 0.95` frustrates uniform flow and forces the
   circulation that defines a swirlon. Flock, conversely, wants the *longest*
   range (`lₐ = 4.0`).
